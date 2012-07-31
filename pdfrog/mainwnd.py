@@ -29,26 +29,59 @@ class MainWnd (QMainWindow):
         self.article_list = ArticleList()
         self.article_list.show()
 
-        self.author_list = AuthorList()
+        self.author_list = AuthorList(parent=self)
         self.author_list.show()
 
         self.tag_list = TagList()
         self.tag_list.show()
 
         self.article_search_bar = QLineEdit();
-        self.article_search_bar.setPlaceholderText('Filter...')
+        self.article_search_bar.setPlaceholderText('Filter articles...')
         self.article_search_bar.returnPressed.connect(self.articleSearchBarReturnPressed)
+        article_search_button = QPushButton("→")
+        article_search_button.clicked.connect(self.articleSearchBarReturnPressed)
 
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.article_search_bar)
-        vbox.addWidget (self.article_list)
-        central_widget = QWidget()
-        central_widget.setLayout(vbox)
+        self.author_search_bar = QLineEdit()
+        self.author_search_bar.setPlaceholderText('Filter authors...')
+        self.author_search_bar.returnPressed.connect(self.authorSearchBarReturnPressed)
+        author_search_button = QPushButton("→")
+        author_search_button.clicked.connect(self.authorSearchBarReturnPressed)
+
+        self.tag_search_bar = QLineEdit()
+        self.tag_search_bar.setPlaceholderText('Filter tags...')
+        self.tag_search_bar.returnPressed.connect(self.tagSearchBarReturnPressed)
+        tag_search_button = QPushButton("→")
+        tag_search_button.clicked.connect(self.tagSearchBarReturnPressed)
+
         tab_widget = QTabWidget()
         self.tab_widget = tab_widget
-        tab_widget.addTab(central_widget, "Articles")
-        tab_widget.addTab(self.author_list, "Authors")
-        tab_widget.addTab(self.tag_list, "Tags")
+
+        # article list page
+        box1 = QGridLayout()
+        box1.addWidget(self.article_search_bar, 0, 0)
+        box1.addWidget(article_search_button, 0, 1)
+        box1.addWidget(self.article_list, 1, 0, 1, 2)
+        articles_compaund_page = QWidget()
+        articles_compaund_page.setLayout(box1)
+        tab_widget.addTab(articles_compaund_page, "Articles")
+
+        # author list page
+        box2 = QGridLayout()
+        box2.addWidget(self.author_search_bar, 0, 0)
+        box2.addWidget(author_search_button, 0, 1)
+        box2.addWidget(self.author_list, 1, 0, 1, 2)
+        authors_compound_page = QWidget()
+        authors_compound_page.setLayout(box2)
+        tab_widget.addTab(authors_compound_page, "Authors")
+
+        # tag list page
+        box3 = QGridLayout()
+        box3.addWidget(self.tag_search_bar, 0, 0)
+        box3.addWidget(tag_search_button, 0, 1)
+        box3.addWidget(self.tag_list, 1, 0, 1, 2)
+        tags_compound_page = QWidget()
+        tags_compound_page.setLayout(box3)
+        tab_widget.addTab(tags_compound_page, "Tags")
         tab_widget.currentChanged.connect(self.tabCurrentPageChanged)
         self.setCentralWidget(tab_widget)
 
@@ -69,40 +102,6 @@ class MainWnd (QMainWindow):
         add_files_action = QAction('Add files...', self)
         add_files_action.triggered.connect(self.addFilesDialog)
 
-        article_edit_title_action = QAction('Edit title', self)
-        article_edit_title_action.setShortcut('F2')
-        article_edit_title_action.triggered.connect(self.article_list.editSelectedArticlesTitle)
-
-        article_edit_action = QAction('Edit ...', self)
-        article_edit_action.triggered.connect(self.article_list.editSelectedArticle)
-
-        delete_article_action = QAction("Delete", self)
-        delete_article_action.setShortcut('Del')
-        delete_article_action.triggered.connect(self.article_list.deleteSelectedArticles)
-
-        article_open_action = QAction("Open (external)", self)
-        article_open_action.setShortcut('Ctrl++')
-        article_open_action.triggered.connect(self.article_list.openSelectedArticlesExternal)
-
-        article_add_tag_action = QAction("Add tag by name ...", self)
-        article_add_tag_action.triggered.connect(self.article_list.addTagToSelectedArticles)
-
-        article_remove_tag_action = QAction("Remove tag by name ...", self)
-        article_remove_tag_action.triggered.connect(self.article_list.removeTagFromSelectedArticles)
-
-        author_remove_action = QAction("Remove", self)
-        author_remove_action.setShortcut('Del')
-        author_remove_action.triggered.connect(self.author_list.removeSelectedAuthors)
-
-        tag_remove_action = QAction("Remove", self)
-        tag_remove_action.triggered.connect(self.tag_list.removeSelectedTags)
-
-        tag_rename_action = QAction("Rename", self)
-        tag_rename_action.triggered.connect(self.tag_list.renameSelectedTag)
-
-        tag_discharge_action = QAction("Discharge", self)
-        tag_discharge_action.triggered.connect(self.tag_list.dischargeSelectedTags)
-
         db_menu = self.menuBar().addMenu("Database")
         db_menu.addAction(open_action)
         db_menu.addAction(save_action)
@@ -111,32 +110,17 @@ class MainWnd (QMainWindow):
         db_menu.addSeparator()
         db_menu.addAction(exit_action)
 
-        article_menu = self.menuBar().addMenu("Article")
-        self.article_menu = article_menu
-        article_menu.addAction(article_edit_title_action)
-        article_menu.addAction(article_add_tag_action)
-        article_menu.addAction(article_remove_tag_action)
-        article_menu.addSeparator()
-        article_menu.addAction(article_open_action)
-        article_menu.addAction(article_edit_action)
-        article_menu.addAction(delete_article_action)
+        self.article_menu = self.menuBar().addMenu("Article")
+        self.article_menu.setEnabled(True)
+        self.article_list.createMenu(self.article_menu)
 
-        author_menu = self.menuBar().addMenu("Author")
-        author_menu.setEnabled(False)
-        self.author_menu = author_menu
-        author_menu.addAction(author_remove_action)
+        self.author_menu = self.menuBar().addMenu("Author")
+        self.author_menu.setEnabled(False)
+        self.author_list.createMenu(self.author_menu)
 
-        tag_menu = self.menuBar().addMenu("Tag")
-        tag_menu.setEnabled(False)
-        self.tag_menu = tag_menu
-        tag_menu.addAction(tag_remove_action)
-        tag_menu.addAction(tag_rename_action)
-        tag_menu.addAction(tag_discharge_action)
-
-        # context menus
-        self.article_list.context_menu = self.article_menu
-        self.author_list.context_menu = self.author_menu
-        self.tag_list.context_menu = tag_menu
+        self.tag_menu = self.menuBar().addMenu("Tag")
+        self.tag_menu.setEnabled(False)
+        self.tag_list.createMenu(self.tag_menu)
 
     def openDatabase(self):
         QMessageBox.information(self, "Open", "This function has not implemented yet.")
@@ -210,6 +194,9 @@ class MainWnd (QMainWindow):
             elif keyword[0:7] == "author:":
                 authorname = keyword[7:]
                 query = query.join(Article.authors).filter(Author.name.like('%'+authorname+'%'))
+            elif keyword[0:12] == "authorexact:":
+                authorname = keyword[12:]
+                query = query.join(Article.authors).filter(Author.name == authorname)
             else:
                 likestr = '%' + keyword + '%'
                 query = query.filter(Article.title.like(likestr))
@@ -222,4 +209,53 @@ class MainWnd (QMainWindow):
         self.statusBar().showMessage('Filtering ...')
         self.statusBar().repaint()
         self.refreshArticleList()
-        #self.statusBar().showMessage('Ok')
+
+    def findArticlesByAuthorName(self, authorname):
+        self.selectTab("articles")
+        self.article_search_bar.setText('authorexact:"{}"'.format(authorname.replace('"', r'\"')))
+        self.articleSearchBarReturnPressed()
+
+    def selectTab(self, tab):
+        # TODO: I use hardcoded tab order
+        if tab == "articles":
+            self.tab_widget.setCurrentIndex(0)
+        elif tab == "authors":
+            self.tab_widget.setcurrentIndex(1)
+        elif tab == "tags":
+            self.tab_widget.setCurrentIndex(2)
+
+    def authorSearchBarReturnPressed(self):
+        self.statusBar().showMessage('Filtering authors...')
+        self.statusBar().repaint()
+        query_list = []
+        for keyword in shlex.split(self.author_search_bar.text()):
+            keyword = keyword.decode()
+            query = pdfrog.session.query(Author)
+            if keyword[0:4] == "org:":
+                query = query.filter(Author.organization.like("%{}%".format(keyword[4:])))
+            elif keyword[0:9] == "orgexact:":
+                query = query.filter(Author.organization == keyword[9:])
+            elif keyword[0:4] == "tag:":
+                query = query.join(Author.articles).join(Article.tags)
+                query = query.filter(Tag.name==keyword[4:])
+            else:
+                query = query.filter(Author.name.like("%{}%".format(keyword)))
+            query_list.append(query)
+
+        query = pdfrog.session.query(Author).intersect(*query_list)
+        item_count = self.author_list.refreshData(query)
+        self.statusBar().showMessage('{} author(s)'.format(item_count))
+
+    def tagSearchBarReturnPressed(self):
+        self.statusBar().showMessage('Filtering tags...')
+        self.statusBar().repaint()
+        query_list = []
+        for keyword in shlex.split(self.tag_search_bar.text()):
+            keyword = keyword.decode()
+            query = pdfrog.session.query(Tag)
+            query = query.filter(Tag.name.like("%{}%".format(keyword)))
+            query_list.append(query)
+
+        query = pdfrog.session.query(Tag).intersect(*query_list)
+        item_count = self.tag_list.refreshData(query)
+        self.statusBar().showMessage('{} tag(s)'.format(item_count))

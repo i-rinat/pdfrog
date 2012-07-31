@@ -34,16 +34,26 @@ class Author(Base):
 
     def getArticleCount(self):
         """counts article count this author have"""
+        if 'cached_article_count' in self.__dict__ \
+            and self not in pdfrog.session.dirty:
+                return self.cached_article_count
         cnt = pdfrog.session.query(author_article_pairs).\
             filter(author_article_pairs.c.author_id == self.id).count()
+        self.cached_article_count = cnt
         return cnt
 
     def getArticleTags(self):
+        if 'cached_article_tags' in self.__dict__ \
+            and self not in pdfrog.session.dirty:
+                return self.cached_article_tags
         tags = set()
-        article_list = pdfrog.session.query(Article).join(Article.authors).filter(Author.id==self.id)
+        article_list = pdfrog.session.query(Article).join(Article.authors).\
+            filter(Author.id==self.id)
         for article in article_list:
             for tag in article.tags:  tags.add(tag)
-        return sorted(tags, key=lambda tag: tag.name)
+        tags = sorted(tags, key=lambda tag: tag.name)
+        self.cached_article_tags = tags
+        return tags
 
     def removeFromDatabase(self):
         pdfrog.session.delete(self)
@@ -113,7 +123,12 @@ class Tag(Base):
 
     def getUsageCount(self):
         """count how many times this tag used"""
-        cnt = pdfrog.session.query(article_tag_pairs).filter(article_tag_pairs.c.tag_id == self.id).count()
+        if 'cached_usage_count' in self.__dict__ \
+            and self not in pdfrog.session.dirty:
+                return self.cached_usage_count
+        cnt = pdfrog.session.query(article_tag_pairs).\
+            filter(article_tag_pairs.c.tag_id == self.id).count()
+        self.cached_usage_count = cnt
         return cnt
 
     def discharge(self):

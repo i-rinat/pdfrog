@@ -19,10 +19,30 @@ class TagList(QTableView):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.refreshData()
 
-    def refreshData(self):
+    def createMenu(self, tag_menu):
+        tag_remove_action = QAction(QIcon.fromTheme("edit-delete"), "Remove", self)
+        tag_remove_action.triggered.connect(self.removeSelectedTags)
+
+        tag_rename_action = QAction(QIcon.fromTheme("document-edit"), "Rename", self)
+        tag_rename_action.triggered.connect(self.renameSelectedTag)
+
+        tag_discharge_action = QAction(QIcon.fromTheme("document-decrypt"), "Discharge", self)
+        tag_discharge_action.triggered.connect(self.dischargeSelectedTags)
+
+        self.context_menu = tag_menu
+        tag_menu.addAction(tag_remove_action)
+        tag_menu.addAction(tag_rename_action)
+        tag_menu.addAction(tag_discharge_action)
+
+    def refreshData(self, query=None):
+        if query is None:
+            query = pdfrog.session.query(Tag).limit(300)
         self.model().clearData()
-        for tag in pdfrog.session.query(Tag):
+        item_count = 0
+        for tag in query:
             self.model().appendTag(tag)
+            item_count += 1
+        return item_count
 
     def removeSelectedTags(self):
         idxs = self.selectionModel().selectedRows()

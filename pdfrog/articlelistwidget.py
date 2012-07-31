@@ -30,6 +30,38 @@ class ArticleList(QTableView):
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
+    def createMenu(self, article_menu):
+        article_edit_title_action = QAction('Edit title', self)
+        article_edit_title_action.setShortcut('F2')
+        article_edit_title_action.triggered.connect(self.editSelectedArticlesTitle)
+
+        article_edit_action = QAction('Edit ...', self)
+        article_edit_action.triggered.connect(self.editSelectedArticle)
+
+        article_delete_action = QAction("Delete", self)
+        article_delete_action.setShortcut('Del')
+        article_delete_action.triggered.connect(self.deleteSelectedArticles)
+
+        article_open_action = QAction("Open (external)", self)
+        article_open_action.setShortcut('Ctrl++')
+        article_open_action.triggered.connect(self.openSelectedArticlesExternal)
+
+        article_add_tag_action = QAction("Add tag by name ...", self)
+        article_add_tag_action.triggered.connect(self.addTagToSelectedArticles)
+
+        article_remove_tag_action = QAction("Remove tag by name ...", self)
+        article_remove_tag_action.triggered.connect(self.removeTagFromSelectedArticles)
+
+        article_menu.addAction(article_edit_title_action)
+        article_menu.addAction(article_add_tag_action)
+        article_menu.addAction(article_remove_tag_action)
+        article_menu.addSeparator()
+        article_menu.addAction(article_open_action)
+        article_menu.addAction(article_edit_action)
+        article_menu.addAction(article_delete_action)
+
+        self.context_menu = article_menu
+
     def __handle_headerSectionResized(self, idx, oldsize, newsize):
         self.resizeRowsToContents()
 
