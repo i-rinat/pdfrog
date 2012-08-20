@@ -19,6 +19,7 @@ class AuthorList(QTableView):
         self.setSortingEnabled(True)
         self.installEventFilter(self)
 
+        self.query = None
         self.refreshData()
 
     def createMenu(self, author_menu):
@@ -33,6 +34,10 @@ class AuthorList(QTableView):
         author_remove_action.setShortcut('Del')
         author_remove_action.triggered.connect(self.removeSelectedAuthors)
 
+        author_refresh_list_action = QAction(QIcon.fromTheme("view-refresh"), "Refresh list", self)
+        author_refresh_list_action.triggered.connect(self.refreshData)
+
+        author_menu.addAction(author_refresh_list_action)
         author_menu.addAction(author_find_articles_action)
         author_menu.addAction(author_edit_action)
         author_menu.addAction(author_remove_action)
@@ -51,7 +56,8 @@ class AuthorList(QTableView):
 
     def refreshData(self, query=None):
         if query is None:
-            query = pdfrog.session.query(Author).limit(300)
+            query = self.query or pdfrog.session.query(Author).limit(300)
+        self.query = query
         mdl = self.model()
         mdl.clearData()
         item_count = 0

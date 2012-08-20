@@ -35,5 +35,4 @@ class pdfrog:
 
         mainwnd = MainWnd()
         mainwnd.show()
-        mainwnd.refreshArticleList()
         sys.exit(app.exec_())

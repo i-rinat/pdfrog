@@ -17,6 +17,7 @@ class TagList(QTableView):
         self.verticalHeader().setVisible(False)
         self.setSortingEnabled(True)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.query = None
         self.refreshData()
 
     def createMenu(self, tag_menu):
@@ -29,14 +30,19 @@ class TagList(QTableView):
         tag_discharge_action = QAction(QIcon.fromTheme("document-decrypt"), "Discharge", self)
         tag_discharge_action.triggered.connect(self.dischargeSelectedTags)
 
+        tag_refresh_list_action = QAction(QIcon.fromTheme("view-refresh"), "Refresh list", self)
+        tag_refresh_list_action.triggered.connect(self.refreshData)
+
         self.context_menu = tag_menu
+        tag_menu.addAction(tag_refresh_list_action)
         tag_menu.addAction(tag_remove_action)
         tag_menu.addAction(tag_rename_action)
         tag_menu.addAction(tag_discharge_action)
 
     def refreshData(self, query=None):
         if query is None:
-            query = pdfrog.session.query(Tag).limit(300)
+            query = self.query or pdfrog.session.query(Tag).limit(300)
+        self.query = query
         self.model().clearData()
         item_count = 0
         for tag in query:

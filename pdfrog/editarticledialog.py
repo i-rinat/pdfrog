@@ -21,6 +21,68 @@ class EditArticleDialog(QDialog):
         self.createWidgets()
         self.updateAuthorList()
         self.updateTagList()
+        self.createContextMenus()
+        # catch events from widgets to invoke context menus
+        self.author_list.installEventFilter(self)
+        self.tag_list.installEventFilter(self)
+
+    def createContextMenus(self):
+        """creates context menus both for author and tag list"""
+        author_remove_action = QAction(QIcon.fromTheme("edit-delete"), "Remove from article", self)
+        author_remove_action.triggered.connect(self.removeSelectedAuthors)
+
+        author_add_action = QAction(QIcon.fromTheme("list-add"), "Add", self)
+        author_add_action.triggered.connect(self.editArticleAuthors)
+
+        tag_add_action = QAction(QIcon.fromTheme("list-add"), "Add", self)
+        tag_add_action.triggered.connect(self.editArticleTags)
+
+        tag_remove_action = QAction(QIcon.fromTheme("edit-delete"), "Remove from article", self)
+        tag_remove_action.triggered.connect(self.removeSelectedTags)
+
+        cm = QMenu()
+        cm.addAction(author_add_action)
+        cm.addAction(author_remove_action)
+        self.author_list.context_menu = cm
+
+        cm = QMenu()
+        cm.addAction(tag_add_action)
+        cm.addAction(tag_remove_action)
+        self.tag_list.context_menu = cm
+
+    def removeSelectedAuthors(self):
+        selected_rows = self.author_list.selectionModel().selectedRows()
+        if len(selected_rows) > 0:
+            author_names = [self.author_list.item(q.row()).text() for q in selected_rows]
+            res = QMessageBox.question(self, "Remove author(s) from article", \
+                "Do you want to remove authors:\n{}\nfrom article?".format(", ".join(author_names)), \
+                buttons = QMessageBox.Ok | QMessageBox.Cancel)
+            if res == QMessageBox.Ok:
+                for a_name in author_names:
+                    self.article.removeAuthorByName(a_name)
+                self.updateAuthorList()
+
+    def removeSelectedTags(self):
+        selected_rows = self.tag_list.selectionModel().selectedRows()
+        if len(selected_rows) > 0:
+            tag_names = [self.tag_list.item(q.row()).text() for q in selected_rows]
+            res = QMessageBox.question(self, "Remove tag(s) from article", \
+                "Do you want to remove tags:\n{}\nfrom article?".format(", ".join(tag_names)), \
+                buttons = QMessageBox.Ok | QMessageBox.Cancel)
+            if res == QMessageBox.Ok:
+                for t_name in tag_names:
+                    self.article.removeTagByName(t_name)
+                self.updateTagList()
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.ContextMenu:
+            if obj == self.author_list:
+                self.author_list.context_menu.exec_(QCursor.pos())
+                return True
+            elif obj == self.tag_list:
+                self.tag_list.context_menu.exec_(QCursor.pos())
+                return True
+        return QDialog.eventFilter(self, obj, event)
 
     def createWidgets(self):
         # creating widgets
@@ -38,11 +100,14 @@ class EditArticleDialog(QDialog):
         # set up widget properties
         self.journal_name.setReadOnly(True)
         self.article_title.setText(self.article.title)
+        self.author_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.tag_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
         # signals
         dialog_button_box.accepted.connect(self.accept)
         self.edit_author_list_button.clicked.connect(self.editArticleAuthors)
         self.edit_tag_list_button.clicked.connect(self.editArticleTags)
+        self.open_button.clicked.connect(self.openArticle)
 
         # widget packing
         main_vbox = QVBoxLayout()
@@ -95,6 +160,9 @@ class EditArticleDialog(QDialog):
         eat = EditArticleTagsDialog(self, self.article)
         eat.exec_()
         self.updateTagList()
+
+    def openArticle(self):
+        Article.openExternal(self.article)
 
     def updateAuthorList(self):
         self.author_list.clear()

@@ -5,10 +5,6 @@ from PySide.QtCore import *
 from pdfrog.datamodel import Article
 from pdfrog.editarticledialog import EditArticleDialog
 import pdfrog
-import tempfile
-import os
-import subprocess
-import mimetypes
 
 class ArticleList(QTableView):
     def __init__(self, *args):
@@ -29,6 +25,9 @@ class ArticleList(QTableView):
         # make scrolling smoother
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        # fill list with initial data
+        self.query = None
+        self.refreshData()
 
     def createMenu(self, article_menu):
         article_edit_title_action = QAction('Edit title', self)
@@ -52,6 +51,10 @@ class ArticleList(QTableView):
         article_remove_tag_action = QAction("Remove tag by name ...", self)
         article_remove_tag_action.triggered.connect(self.removeTagFromSelectedArticles)
 
+        article_refresh_list_action = QAction(QIcon.fromTheme("view-refresh"), "Refresh list", self)
+        article_refresh_list_action.triggered.connect(self.refreshData)
+
+        article_menu.addAction(article_refresh_list_action)
         article_menu.addAction(article_edit_title_action)
         article_menu.addAction(article_add_tag_action)
         article_menu.addAction(article_remove_tag_action)
@@ -81,7 +84,7 @@ class ArticleList(QTableView):
         mb.setText(text)
         res = mb.exec_()
         if QMessageBox.Yes == res:
-            article_list = [self.model().article(idx) for idx in selected_rows];
+            article_list = [self.model().item(idx.row()) for idx in selected_rows];
             for a in article_list:
                 self.model().deleteArticleByObject(a)
                 pdfrog.session.delete(a)
@@ -94,20 +97,8 @@ class ArticleList(QTableView):
             return QTableView.eventFilter(self, obj, event)
 
     def handle_activated(self, index):
-        article = self.article(index)
-        self.openArticle(article)
-
-    def openArticle(self, article):
-        """launches external viewer via xdg-open"""
-        if type(article) != Article: raise Exception('Is not Article object')
-        suffix = mimetypes.guess_extension(article.filemime)
-        for compr_ext in mimetypes.encodings_map:
-            if mimetypes.encodings_map[compr_ext] == article.filecompr:
-                suffix += compr_ext
-        tmpname = tempfile.mktemp(suffix, '', pdfrog.tmpdir)
-        with open(tmpname, 'wb') as f: f.write(article.fileblob)
-        with open(os.devnull, 'w') as fnull:
-            subprocess.call(["xdg-open", tmpname], stderr=fnull)
+        article = self.item(index.row())
+        Article.openExternal(article)
 
     def openSelectedArticlesExternal(self):
         """launches external viewer for selected articles"""
@@ -120,7 +111,7 @@ class ArticleList(QTableView):
             if res == QMessageBox.Cancel:
                 return
         for item in idxs:
-            self.openArticle(self.article(item))
+            Article.openExternal(self.item(item.row()))
 
     def editSelectedArticlesTitle(self):
         """edit title of first selected article"""
@@ -131,7 +122,7 @@ class ArticleList(QTableView):
     def editSelectedArticle(self):
         idxs = self.selectedIndexes()
         if len(idxs) != 0:    # something selected
-            ead = EditArticleDialog(self, self.article(idxs[0]))
+            ead = EditArticleDialog(self, self.item(idxs[0].row()))
             ead.exec_()
             self.dataChanged(idxs[0], idxs[0])
 
@@ -141,10 +132,10 @@ class ArticleList(QTableView):
         self.model().appendArticle(obj)
 
     def removeAllArticles(self):
-        self.model().removeAllArticles()
+        self.model().clearData()
 
-    def article(self, index):
-        return self.model().article(index)
+    def item(self, row):
+        return self.model().item(row)
 
     def addTagToSelectedArticles(self):
         idxs = self.selectionModel().selectedRows()
@@ -152,7 +143,7 @@ class ArticleList(QTableView):
         (tag_name, ok_pressed) = QInputDialog.getText(self, "Add tag", "Tag:")
         if ok_pressed and tag_name != '':
             for idx in idxs:
-                self.article(idx).addTagByName(tag_name)
+                self.item(idx.row()).addTagByName(tag_name)
                 self.dataChanged(idx, idx)
 
     def removeTagFromSelectedArticles(self):
@@ -161,8 +152,21 @@ class ArticleList(QTableView):
         (tag_name, ok_pressed) = QInputDialog.getText(self, "Remove tag", "Tag:")
         if ok_pressed and tag_name != '':
             for idx in idxs:
-                self.article(idx).removeTagByName(tag_name)
+                self.item(idx.row()).removeTagByName(tag_name)
                 self.dataChanged(idx, idx)
+
+    def refreshData(self, query=None):
+        if query is None:
+            query = self.query or pdfrog.session.query(Article).limit(300)
+        self.query = query
+        mdl = self.model()
+        mdl.clearData()
+        item_count = 0
+        for article in query:
+            mdl.appendArticle(article)
+            item_count += 1
+        self.resizeRowsToContents()
+        return item_count
 
 
 class ArticleListModel(QAbstractTableModel):
@@ -255,12 +259,6 @@ class ArticleListModel(QAbstractTableModel):
         else:
             return None
 
-    def getView(self):
-        if self.view is not None:
-            return self.view
-        else:
-            raise Exception("ArticleListModel has no parent")
-
     def appendArticle(self, obj):
         row = self.rowCount()
         self.beginInsertRows(QModelIndex(), row, row)
@@ -273,10 +271,9 @@ class ArticleListModel(QAbstractTableModel):
         self.datastore.remove(obj)
         self.endRemoveRows()
 
-    def removeAllArticles(self):
-        self.beginRemoveRows(QModelIndex(), 0, self.rowCount() - 1)
+    def clearData(self):
+        self.modelReset.emit()
         self.datastore = []
-        self.endRemoveRows()
 
-    def article(self, index):
-        return self.datastore[index.row()]
+    def item(self, row):
+        return self.datastore[row]

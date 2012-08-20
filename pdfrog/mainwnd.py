@@ -7,6 +7,7 @@ from pdfrog.addfiledialog import AddFileDialog
 from pdfrog.articlelistwidget import ArticleList
 from .taglistwidget import TagList
 from .authorlistwidget import AuthorList
+from .journallistwidget import JournalList
 import pdfrog
 import tempfile
 import subprocess
@@ -23,7 +24,6 @@ class MainWnd (QMainWindow):
         self.createWidgets()
         self.createMenus()
         self.statusBar()
-        self.article_query = pdfrog.session.query(Article).limit(1000)
 
     def createWidgets(self):
         self.article_list = ArticleList()
@@ -34,6 +34,8 @@ class MainWnd (QMainWindow):
 
         self.tag_list = TagList()
         self.tag_list.show()
+
+        self.journal_list = JournalList()
 
         self.article_search_bar = QLineEdit();
         self.article_search_bar.setPlaceholderText('Filter articles...')
@@ -53,8 +55,16 @@ class MainWnd (QMainWindow):
         tag_search_button = QPushButton("→")
         tag_search_button.clicked.connect(self.tagSearchBarReturnPressed)
 
+        self.journal_search_bar = QLineEdit()
+        self.journal_search_bar.setPlaceholderText('Filter journals...')
+        self.journal_search_bar.returnPressed.connect(self.journalSearchBarReturnPressed)
+        journal_search_button = QPushButton("→")
+        journal_search_button.clicked.connect(self.journalSearchBarReturnPressed)
+
         tab_widget = QTabWidget()
         self.tab_widget = tab_widget
+        tab_widget.currentChanged.connect(self.tabCurrentPageChanged)
+        self.setCentralWidget(tab_widget)
 
         # article list page
         box1 = QGridLayout()
@@ -82,8 +92,15 @@ class MainWnd (QMainWindow):
         tags_compound_page = QWidget()
         tags_compound_page.setLayout(box3)
         tab_widget.addTab(tags_compound_page, "Tags")
-        tab_widget.currentChanged.connect(self.tabCurrentPageChanged)
-        self.setCentralWidget(tab_widget)
+
+        # journal list page
+        box4 = QGridLayout()
+        box4.addWidget(self.journal_search_bar, 0, 0)
+        box4.addWidget(journal_search_button, 0, 1)
+        box4.addWidget(self.journal_list, 1, 0, 1, 2)
+        journals_compound_page = QWidget()
+        journals_compound_page.setLayout(box4)
+        tab_widget.addTab(journals_compound_page, "Journals")
 
     def createMenus(self):
         exit_action = QAction('E&xit', self)
@@ -122,6 +139,10 @@ class MainWnd (QMainWindow):
         self.tag_menu.setEnabled(False)
         self.tag_list.createMenu(self.tag_menu)
 
+        self.journal_menu = self.menuBar().addMenu("Journal")
+        self.journal_menu.setEnabled(False)
+        self.journal_list.createMenu(self.journal_menu)
+
     def openDatabase(self):
         QMessageBox.information(self, "Open", "This function has not implemented yet.")
 
@@ -131,9 +152,12 @@ class MainWnd (QMainWindow):
 
     def tabCurrentPageChanged(self, index):
         # TODO: get rid of hardcoded tabwidget page order
+        # method called when self.article_menu does not exist yet
+        if 'article_menu' not in self.__dict__: return
         self.article_menu.setEnabled(index == 0)
         self.author_menu.setEnabled(index == 1)
         self.tag_menu.setEnabled(index == 2)
+        self.journal_menu.setEnabled(index == 3)
 
     def addFilesDialog(self):
         fl = QFileDialog.getOpenFileNames(self, filter="PDF documents (*.pdf);; All Files (*.*)", selectedFilter="*.pdf")
@@ -149,7 +173,7 @@ class MainWnd (QMainWindow):
             afd.setFileName(filename)
             afd.exec_()
             doc_idx += 1
-        self.refreshArticleList()
+        self.article_list.refreshData()
 
     def closeEvent(self, event):
         from time import sleep
@@ -159,14 +183,6 @@ class MainWnd (QMainWindow):
         self.statusBar().showMessage('Saved')
         self.statusBar().repaint()
         QMainWindow.closeEvent(self, event)
-
-    def refreshArticleList(self):
-        self.article_list.removeAllArticles()
-        for article in self.article_query:
-            self.article_list.appendArticle(article)
-        article_count = self.article_query.count()
-        self.statusBar().showMessage(str(article_count) + " article(s)")
-        self.article_list.resizeRowsToContents()
 
     def dropEvent(self, event):
         self.addFiles(self.__drop_files)
@@ -205,10 +221,10 @@ class MainWnd (QMainWindow):
         query = pdfrog.session.query(Article)
         query = query.intersect(*query_list)
 
-        self.article_query = query
         self.statusBar().showMessage('Filtering ...')
         self.statusBar().repaint()
-        self.refreshArticleList()
+        item_count = self.article_list.refreshData(query)
+        self.statusBar().showMessage('{} article(s)'.format(item_count))
 
     def findArticlesByAuthorName(self, authorname):
         self.selectTab("articles")
@@ -259,3 +275,6 @@ class MainWnd (QMainWindow):
         query = pdfrog.session.query(Tag).intersect(*query_list)
         item_count = self.tag_list.refreshData(query)
         self.statusBar().showMessage('{} tag(s)'.format(item_count))
+
+    def journalSearchBarReturnPressed(self):
+        print "stub journalSearchBarReturnPressed"
